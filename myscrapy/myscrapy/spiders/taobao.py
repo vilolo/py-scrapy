@@ -20,6 +20,8 @@ class TaobaoSpider(scrapy.Spider):
         chrome_options = webdriver.ChromeOptions()
         chrome_options.add_argument('--headless')  # 关闭则不提供界面
         chrome_options.add_argument('--no-sandbox')  # 非沙盘模式
+        mobile_emulation = {'deviceName': 'iPhone 6/7/8'}
+        chrome_options.add_experimental_option('mobileEmulation', mobile_emulation)
         self.browser = webdriver.Chrome(chrome_options=chrome_options,
                                         executable_path="D:\\my doc\\py-scrapy\\chromedriver.exe")
         super(TaobaoSpider, self).__init__()

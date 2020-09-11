@@ -105,7 +105,7 @@ class DownloaderMiddleware:
         # driver.maximize_window();# 窗口最大化
         # 执行js滚动浏览器窗口到底部
         spider.browser.execute_script(js)
-        # time.sleep(5)  # 不加载图片的话，这个时间可以不要，等待JS执行
+        time.sleep(5)  # 不加载图片的话，这个时间可以不要，等待JS执行
         # driver.get_screenshot_as_file("C:\\Users\\Administrator\\Desktop\\test.png")
         content = spider.browser.page_source.encode('utf-8')
         # driver.quit()
