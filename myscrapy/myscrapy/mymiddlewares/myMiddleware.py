@@ -9,6 +9,19 @@ import time
 from scrapy import signals
 
 from scrapy.http import HtmlResponse
+from selenium.webdriver.support.wait import WebDriverWait
+
+
+# 检查页面加载完毕
+class page_loaded:
+
+    def __init__(self, request, spider):
+        self.request = request
+        self.spider = spider
+
+    def __call__(self, driver):
+        img_src = driver.find_element_by_css_selector("img.product-carousel__item").get_attribute("src")
+        return len(img_src) == 0
 
 class DownloaderMiddleware:
     # Not all methods need to be defined. If a method is not defined,
@@ -39,7 +52,7 @@ class DownloaderMiddleware:
     def pc_request(self, request, spider):
         browser = spider.browserPc
         browser.get(request.url)
-        time.sleep(3)
+        time.sleep(5)
 
         js = '''
             var langBtn = document.getElementsByClassName("shopee-button-outline--primary-reverse")
@@ -84,6 +97,8 @@ class DownloaderMiddleware:
         browser = spider.browserMobile
         browser.get(request.url)
         time.sleep(3)
+
+        WebDriverWait(browser, timeout=30, poll_frequency=3).until(page_loaded(request, spider))
 
         js = '''
             var langBtn = document.getElementsByClassName("stardust-button")

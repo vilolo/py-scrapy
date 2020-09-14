@@ -12,3 +12,5 @@ class Item(scrapy.Item):
     add_time = scrapy.Field()
     img_list = scrapy.Field()
     sort = scrapy.Field()
+    location = scrapy.Field()
+    level = scrapy.Field()

@@ -82,6 +82,9 @@ class MySpider(scrapy.Spider):
         item['add_time'] = response.xpath('//span[@class="_2L7iw7"]/text()').extract_first()
         item['img_list'] = json.dumps(response.xpath('//div[@class="_3ZDC1p _24d4bo"]/img/@src').getall())
         item['sort'] = response.meta.get('sort')
+        item['location'] = response.xpath('//div[@class="xuIe21 typo-r12"]/text()').extract_first()
+        item['level'] = response.xpath('//div[@class="badge__horizontal badge__preferred"]/text()').extract_first()
+        item['shop'] = response.xpath('//div[@class="A2LqCL"]/text()').extract_first()
         yield item
 
     def closed(self, reason):

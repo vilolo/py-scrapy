@@ -18,14 +18,15 @@ class Pipeline:
         print('====== into myPipeline ======')
         print(item)
         sql = '''
-            insert into sp_show(shop_id,goods_id,title,sales,price,discount_price,`desc`,add_time,img_list,url,sort,created_at) 
-            values(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            insert into sp_show(shop_id,goods_id,title,sales,price,discount_price,`desc`,add_time,img_list,url,sort,`level`,location,shop,created_at) 
+            values(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             '''
 
         try:
             self.cursor.execute(sql, (item['shop_id'],item['goods_id'],item['title'],
                                         item['sales'],item['price'],item['discount_price'],item['desc'],
                                         item['add_time'],item['img_list'],item['url'],item['sort'],
+                                        item['level'], item['location'], item['shop'],
                                         self.curTime))
             self.conn.commit()
         except pymysql.Error as e:
