@@ -2,8 +2,8 @@
 #
 # See documentation in:
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
-import io
-import sys
+
+import random
 import time
 
 from scrapy import signals
@@ -11,6 +11,10 @@ from scrapy import signals
 from scrapy.http import HtmlResponse
 from selenium.webdriver.support.wait import WebDriverWait
 
+from myscrapy.settings import UAPOOL
+
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 
 # 检查页面加载完毕
 class page_loaded:
@@ -38,6 +42,8 @@ class DownloaderMiddleware:
     def process_request(self, request, spider):
         content = self.selenium_request(request, spider)
         if content.strip() != '':
+            thisua = random.choice(UAPOOL)
+            request.headers.setdefault('User-Agent', thisua)
             return HtmlResponse(request.url, encoding='utf-8', body=content, request=request)
         return None
 
@@ -96,9 +102,13 @@ class DownloaderMiddleware:
     def mobile_request(self, request, spider):
         browser = spider.browserMobile
         browser.get(request.url)
-        time.sleep(3)
+        time.sleep(5)
 
-        WebDriverWait(browser, timeout=30, poll_frequency=3).until(page_loaded(request, spider))
+        # poll_frequency：检测的间隔步长，默认为0.5s
+        # WebDriverWait(browser, timeout=30, poll_frequency=2).until(page_loaded(request, spider))
+
+        # wait = WebDriverWait(browser, 10, 0.5)
+        # wait.until(EC.presence_of_element_located((By.CLASS_NAME, "_2JMB9h")), message='time out')
 
         js = '''
             var langBtn = document.getElementsByClassName("stardust-button")

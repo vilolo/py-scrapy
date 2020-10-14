@@ -5,8 +5,8 @@ import pymysql
 
 class Pipeline:
     def __init__(self):
-        self.conn = pymysql.connect(host='localhost', user='root', password='root', database='sspp',
-                                    charset='utf8')
+        self.conn = pymysql.connect(host='localhost', port=8889, user='root', password='root', database='sspp',
+                                    charset='utf8mb4')
         self.cursor = self.conn.cursor()
         self.curTime = str(int(time.time()))
 

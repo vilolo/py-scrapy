@@ -14,3 +14,4 @@ class Item(scrapy.Item):
     sort = scrapy.Field()
     location = scrapy.Field()
     level = scrapy.Field()
+    shop = scrapy.Field()
