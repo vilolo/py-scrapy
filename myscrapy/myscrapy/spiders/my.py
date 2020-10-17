@@ -20,17 +20,26 @@ class MySpider(scrapy.Spider):
     }
 
     sort = 0
+    html = ''
 
     def __init__(self):
         # https://shopee.com.my/shop/114466121/search
-        self.start_urls.append('https://shopee.com.my/search?keyword=shoes')
+        self.start_urls.append('https://shopee.com.my/search?keyword=anime')
 
         # driverPath = 'D:\\my doc\\py-scrapy\\chromedriver.exe'
         driverPath = '/Users/mac/www/demo/pys/chromedriver'
 
         chrome_options = webdriver.ChromeOptions()
-        chrome_options.add_argument('--headless')  # 关闭则不提供界面
+        chrome_options.add_argument('--headless')  # 注释后有界面
         chrome_options.add_argument('--no-sandbox')  # 非沙盘模式
+        chrome_options.add_argument('window-size=1920x3000')  # 设置浏览器分辨率
+        chrome_options.add_argument('--disable-gpu')  # 谷歌文档提到需要加上这个属性来规避bug
+        # chrome_options.add_argument('blink-settings=imagesEnabled=false')  # 不加载图片，提升运行速度
+
+        # 禁止图片和css加载
+        prefs = {"profile.managed_default_content_settings.images": 2, 'permissions.default.stylesheet': 2}
+        chrome_options.add_experimental_option("prefs", prefs)
+
         chrome_options.add_experimental_option('excludeSwitches', ['enable-automation'])    #规避检测
         self.browserPc = webdriver.Chrome(chrome_options=chrome_options,
                                           executable_path=driverPath)
@@ -52,12 +61,12 @@ class MySpider(scrapy.Spider):
     def parse(self, response):
         for url in response.xpath('//div[@class="col-xs-2-4 shopee-search-item-result__item"]/div/a/@href').getall():
             self.sort = self.sort + 1
-            yield response.follow(url=url, callback=self.parseDetail, meta={'isMobile': True, 'sort': self.sort})
+            yield response.follow(url=url, callback=self.parseDetail, meta={'isMobile': True, 'sort': self.sort, 'p': 1})
             # break
 
-        for page in range(1, 2):
-            yield response.follow(url='https://shopee.com.my/search?keyword=shoes&page='+str(page),
-                                  callback=self.parsePage)
+        for page in range(1, 3):
+            yield response.follow(url='https://shopee.com.my/search?keyword=anime&page='+str(page),
+                                  callback=self.parsePage, meta={'p': page+1})
             # break
 
     def parsePage(self, response):
@@ -69,7 +78,7 @@ class MySpider(scrapy.Spider):
             print('url====================')
             print(url)
             self.sort = self.sort + 1
-            yield response.follow(url=url, callback=self.parseDetail, meta={'isMobile': True, 'sort': self.sort})
+            yield response.follow(url=url, callback=self.parseDetail, meta={'isMobile': True, 'sort': self.sort, 'p': response.request.meta.get('p')})
             # break
 
     def parseDetail(self, response):
@@ -92,9 +101,54 @@ class MySpider(scrapy.Spider):
         item['location'] = response.xpath('//div[@class="xuIe21 typo-r12"]/text()').extract_first()
         item['level'] = response.xpath('//div[@class="badge__horizontal badge__preferred"]/text()').extract_first()
         item['shop'] = response.xpath('//div[@class="A2LqCL"]/text()').extract_first()
+        item['page'] = response.request.meta.get('p')
         yield item
+
+        self.html = self.html + """
+        <div>
+        <div class="title"><a href="xxx">%(title)s</a></div>
+        <div>
+            <span class="tip-red">aa: bb</span>
+            <span class="tip-red">aa: bb</span>
+        </div>
+        <div class="cover">
+            <img src="xxx" width="100" height="100">
+            <img src="xxx" width="100" height="100">
+        </div>
+        <div class="desc">
+        <pre>%(desc)s</pre>
+        </div>
+        </div><hr>
+        """ % dict(title=item['title'], desc=item['desc'])
 
     def closed(self, reason):
         self.browserPc.quit()
         self.browserMobile.quit()
+
+        # 输出html
+        # coding=UTF-8
+        filename = '/Users/mac/www/demo/pys/file/test.html'
+        headHtml = '''
+        <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+        <html xmlns="http://www.w3.org/1999/xhtml">
+        <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <script src="http://lib.sinaapp.com/js/jquery/1.7.2/jquery.min.js"></script>
+        <style>
+            body{margin: 20px;}
+            .title{margin: 10px;}
+            .tip-red{padding: 10px; margin-right: 10px; background-color: brown;}
+            .cover{margin: 10px;}
+            .desc{margin: 10px;}
+        </style>
+        </head>
+        <body>
+        '''
+        footHtml = '''
+        </body>
+        </html>
+        '''
+        # with open(filename, 'w') as file_object:
+        #     file_object.write(headHtml+self.html+footHtml)
+
         pass

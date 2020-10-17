@@ -58,6 +58,10 @@ class DownloaderMiddleware:
     def pc_request(self, request, spider):
         browser = spider.browserPc
         browser.get(request.url)
+        # browser.maximize_window()
+        # time.sleep(2)
+        # browser.refresh()
+        # browser.maximize_window()
         time.sleep(3)
 
         js = '''
@@ -67,27 +71,35 @@ class DownloaderMiddleware:
             '''
         browser.execute_script(js)
 
-        time.sleep(2)
-
         js = """
             function scrollToBottom() {
                 var Height = document.body.clientHeight,  //文本高度
                     screenHeight = window.innerHeight,  //屏幕高度
-                    INTERVAL = 100,  // 滚动动作之间的间隔时间
-                    delta = 500,  //每次滚动距离
+                    INTERVAL = 500,  // 滚动动作之间的间隔时间
+                    delta = 100,  //每次滚动距离
                     curScrollTop = 0;    //当前window.scrollTop 值
+                var down = true;
+                Height = Height > 800 ? Height : 1000;
                 console.info(Height)
                 var scroll = function () {
                     //curScrollTop = document.body.scrollTop;
-                    curScrollTop = curScrollTop + delta;
+                    if (down){
+                        curScrollTop = curScrollTop + delta;
+                    }else{
+                        curScrollTop = curScrollTop - delta;
+                    }
                     window.scrollTo(0,curScrollTop);
                     console.info("偏移量:"+delta)
                     console.info("当前位置:"+curScrollTop)
                 };
                 var timer = setInterval(function () {
+                    Height = document.body.clientHeight;
                     var curHeight = curScrollTop + screenHeight;
-                    if (curHeight >= Height){   //滚动到页面底部时，结束滚动
-                        clearInterval(timer);
+                    if (down && curHeight >= Height){   //滚动到页面底部时，结束滚动
+                        down = false;
+                    }
+                    if (!down && curScrollTop<=0){
+                        down = true;
                     }
                     scroll();
                 }, INTERVAL)
@@ -97,8 +109,13 @@ class DownloaderMiddleware:
         browser.execute_script(js)
 
         if request.url.find('robots') < 0:
-            wait = WebDriverWait(browser, 20, 0.5)
-            wait.until(EC.presence_of_element_located((By.CLASS_NAME, "_39-Tsj")), message=request.url+'PC time out')
+            wait = WebDriverWait(browser, 30, 0.5)
+            # wait.until(EC.presence_of_element_located((By.CLASS_NAME, "_39-Tsj")), message=request.url+'PC time out')
+            wait.until(EC.presence_of_element_located(
+                (By.CSS_SELECTOR, ".shopee-search-item-result__items>div:nth-child(50)>div>a")),
+                message=request.url+',PC time out')
+
+        time.sleep(2)
 
         # 截屏
         # driver.get_screenshot_as_file("C:\\Users\\Administrator\\Desktop\\test.png")
@@ -108,6 +125,10 @@ class DownloaderMiddleware:
     def mobile_request(self, request, spider):
         browser = spider.browserMobile
         browser.get(request.url)
+        # browser.maximize_window()
+        # time.sleep(2)
+        # browser.refresh()
+        # browser.maximize_window()
         time.sleep(3)
 
         # poll_frequency：检测的间隔步长，默认为0.5s
@@ -120,27 +141,35 @@ class DownloaderMiddleware:
             '''
         browser.execute_script(js)
 
-        time.sleep(2)
-
         js = """
             function scrollToBottom() {
                 var Height = document.body.clientHeight,  //文本高度
                     screenHeight = window.innerHeight,  //屏幕高度
-                    INTERVAL = 100,  // 滚动动作之间的间隔时间
-                    delta = 500,  //每次滚动距离
+                    INTERVAL = 500,  // 滚动动作之间的间隔时间
+                    delta = 100,  //每次滚动距离
                     curScrollTop = 0;    //当前window.scrollTop 值
+                var down = true;
+                Height = Height > 500 ? Height : 500;
                 console.info(Height)
                 var scroll = function () {
                     //curScrollTop = document.body.scrollTop;
-                    curScrollTop = curScrollTop + delta;
+                    if (down){
+                        curScrollTop = curScrollTop + delta;
+                    }else{
+                        curScrollTop = curScrollTop - delta;
+                    }
                     window.scrollTo(0,curScrollTop);
                     console.info("偏移量:"+delta)
                     console.info("当前位置:"+curScrollTop)
                 };
                 var timer = setInterval(function () {
+                    Height = document.body.clientHeight;
                     var curHeight = curScrollTop + screenHeight;
-                    if (curHeight >= Height){   //滚动到页面底部时，结束滚动
-                        clearInterval(timer);
+                    if (down && curHeight >= Height){   //滚动到页面底部时，结束滚动
+                        down = false;
+                    }
+                    if (!down && curScrollTop<=0){
+                        down = true;
                     }
                     scroll();
                 }, INTERVAL)
@@ -148,7 +177,7 @@ class DownloaderMiddleware:
             scrollToBottom()
             """
         browser.execute_script(js)
-        time.sleep(2)
+        time.sleep(3)
 
         js = '''
             var langBtn = document.getElementsByClassName("_1UZPkA")
@@ -156,8 +185,10 @@ class DownloaderMiddleware:
             '''
         browser.execute_script(js)
 
-        wait = WebDriverWait(browser, 10, 0.5)
-        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "product-carousel__item")), message=request.url+'mobile time out')
+        wait = WebDriverWait(browser, 30, 0.5)
+        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "product-carousel__item")), message=request.url+',mobile time out')
+
+        time.sleep(5)
 
         return browser.page_source.encode('utf-8')
 

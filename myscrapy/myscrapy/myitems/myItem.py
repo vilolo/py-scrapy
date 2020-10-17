@@ -15,3 +15,4 @@ class Item(scrapy.Item):
     location = scrapy.Field()
     level = scrapy.Field()
     shop = scrapy.Field()
+    page = scrapy.Field()
