@@ -89,16 +89,24 @@ ROBOTSTXT_OBEY = True
 
 # HTTPERROR_ALLOWED_CODES = [403]
 
+# RETRY_TIMES = 2
+# RETRY_HTTP_CODES = [500, 502, 503, 504, 522, 524, 408, 429, 520]
+
 # Disable cookies (enabled by default)
 COOKIES_ENABLED = False
 
 # Configure a delay for requests for the same website (default: 0)
 # See https://doc.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 0.8
+DOWNLOAD_DELAY = 0.2
 
 UAPOOL = [
     "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.22 Safari/537.36 SE 2.X MetaSr 1.0",
     "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:48.0) Gecko/20100101 Firefox/48.0",
     "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/536.5"
 ]
+
+# 多线程
+CONCURRENT_REQUESTS = 100
+CONCURRENT_REQUESTS_PER_DOMAIN = 100
+CONCURRENT_REQUESTS_PER_IP = 100

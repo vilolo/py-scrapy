@@ -1,6 +1,8 @@
 import json
+import time
 
 import scrapy
+from scrapy.http import HtmlResponse
 from selenium import webdriver
 from myscrapy.myitems.myItem import Item
 
@@ -19,12 +21,18 @@ class MySpider(scrapy.Spider):
         }
     }
 
+    totalPage = 3
     sort = 0
     html = ''
+    platform = 'my'
+    # stationery
+    # Accessories Storage
+    keyword = 'Storage'
+    runId = time.strftime("%Y%m%d-%H%M%S", time.localtime())
 
     def __init__(self):
         # https://shopee.com.my/shop/114466121/search
-        self.start_urls.append('https://shopee.com.my/search?keyword=anime')
+        self.start_urls.append('https://shopee.com.my/search?keyword='+self.keyword)
 
         # driverPath = 'D:\\my doc\\py-scrapy\\chromedriver.exe'
         driverPath = '/Users/mac/www/demo/pys/chromedriver'
@@ -58,16 +66,29 @@ class MySpider(scrapy.Spider):
     #     for url in self.start_urls:
     #         yield scrapy.FormRequest(url=url, callback=self.parse, formdata=data)
 
-    def parse(self, response):
+    def parseOld(self, response):
         for url in response.xpath('//div[@class="col-xs-2-4 shopee-search-item-result__item"]/div/a/@href').getall():
             self.sort = self.sort + 1
             yield response.follow(url=url, callback=self.parseDetail, meta={'isMobile': True, 'sort': self.sort, 'p': 1})
             # break
 
-        for page in range(1, 3):
-            yield response.follow(url='https://shopee.com.my/search?keyword=anime&page='+str(page),
+        for page in range(1, self.totalPage):
+            yield response.follow(url='https://shopee.com.my/search?keyword='+self.keyword+'&page='+str(page),
                                   callback=self.parsePage, meta={'p': page+1})
             # break
+
+    def parse(self, response):
+        for item in response.xpath('//div[@class="col-xs-2-4 shopee-search-item-result__item"]/div'):
+            url = item.xpath('a/@href').extract_first()
+            self.sort = self.sort + 1
+            ad = item.xpath('.//div[@class="_3ao649"]/text()').extract_first()
+            yield response.follow(url=url, callback=self.parseDetail,
+                                  meta={'isMobile': True, 'sort': self.sort, 'p': 1, 'ad': ad})
+
+        for page in range(1, self.totalPage):
+            yield response.follow(url='https://shopee.com.my/search?keyword=' + self.keyword + '&page=' + str(page),
+                                  callback=self.parsePage, meta={'p': page + 1})
+
 
     def parsePage(self, response):
         urlList = response.xpath('//div[@class="shop-search-result-view__item col-xs-2-4"]/div/a/@href').getall()
@@ -101,7 +122,11 @@ class MySpider(scrapy.Spider):
         item['location'] = response.xpath('//div[@class="xuIe21 typo-r12"]/text()').extract_first()
         item['level'] = response.xpath('//div[@class="badge__horizontal badge__preferred"]/text()').extract_first()
         item['shop'] = response.xpath('//div[@class="A2LqCL"]/text()').extract_first()
+        item['ad'] = response.request.meta.get('ad')
         item['page'] = response.request.meta.get('p')
+        item['platform'] = self.platform
+        item['run_id'] = self.runId
+        item['keyword'] = self.keyword
         yield item
 
         self.html = self.html + """
