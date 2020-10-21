@@ -28,8 +28,9 @@ class MysSpider(scrapy.Spider):
     totalPage = 1
     currentPage = 1
     lastPageProduct = 1
-    shopUsername = 'bedsheetbestseller'
+    shopUsername = 'jiangcz.my'
     basePageUrl = ''
+    sort = 1
 
     def __init__(self):
         self.start_urls.append('https://shopee.com.my/'+self.shopUsername)
@@ -61,10 +62,10 @@ class MysSpider(scrapy.Spider):
         self.totalProduct = int(response.xpath('//*[@id="main"]/div/div[2]/div[2]/div[2]/div/div[1]/div/div[2]/div[1]/div[2]/div[2]/text()').extract_first())
 
         # 计算总页数
-        self.totalPage = int(self.totalProduct / 50)
+        self.totalPage = int(self.totalProduct / 30)
 
         # 最后一页数量
-        self.lastPageProduct = self.totalProduct % 50
+        self.lastPageProduct = self.totalProduct % 30
 
         # 店铺自定义名
         shopName = response.xpath('//*[@id="main"]/div/div[2]/div[2]/div[2]/div/div[1]/div/div[1]/div[3]/div[1]/div/h1/text()').extract_first()
@@ -98,18 +99,18 @@ class MysSpider(scrapy.Spider):
     def parsePage(self, response):
         print('=== into parsePage ===')
         # 循环产品
-        sort = 1
         for item in response.xpath('//div[@class="shop-search-result-view__item col-xs-2-4"]/div'):
             url = item.xpath('a/@href').extract_first()
-            yield response.follow(url=url, callback=self.parseDetail, meta={'isMobile': True, 'sort': sort, 'p': self.currentPage})
-            sort = sort + 1
+            yield response.follow(url=url, callback=self.parseDetail, meta={'isMobile': True, 'sort': self.sort, 'p': self.currentPage})
+            self.sort = self.sort + 1
 
         # 循环页数
-        # if self.currentPage < self.totalPage:
-        #     yield response.follow(url=self.basePageUrl+'?page='+str(self.currentPage), callback=self.parsePage)
-        #     self.currentPage = self.currentPage + 1
+        if self.currentPage <= self.totalPage:
+            yield response.follow(url=self.basePageUrl+'?page='+str(self.currentPage), callback=self.parsePage)
+            self.currentPage = self.currentPage + 1
 
     def parseDetail(self, response):
+        # print('@@@'+str(response.meta.get('sort'))+'@@@')
         item = shopProductItem()
         item['url'] = response.request.url
 

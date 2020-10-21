@@ -58,11 +58,7 @@ class DownloaderMiddleware:
     def pc_request(self, request, spider):
         browser = spider.browserPc
         browser.get(request.url)
-        # browser.maximize_window()
-        # time.sleep(2)
-        # browser.refresh()
-        # browser.maximize_window()
-        time.sleep(2)
+        time.sleep(1)
 
         js = '''
             console.info('===== start PC js =====')
@@ -109,30 +105,24 @@ class DownloaderMiddleware:
         browser.execute_script(js)
 
         if request.url.find('robots') < 0:
-            wait = WebDriverWait(browser, 30, 0.5)
-            wait.until(EC.presence_of_element_located(
-                # shop-search-result-view__item col-xs-2-4
-                (By.CSS_SELECTOR, ".shop-search-result-view > div > div:nth-child(30)>div>a")),
-                message=request.url + ',PC time out')
+            try:
+                wait = WebDriverWait(browser, 30, 0.5)
+                wait.until(EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, ".shop-search-result-view > div > div:nth-child(30)>div>a")),
+                    message=request.url + ',PC time out')
+            except:
+                wait = WebDriverWait(browser, 30, 0.5)
+                wait.until(EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, ".shop-search-result-view > div > div:nth-child(1)>div>a")),
+                    message=request.url + ',PC time out')
 
-        time.sleep(5)
-
-        # 截屏
-        # driver.get_screenshot_as_file("C:\\Users\\Administrator\\Desktop\\test.png")
-
+        time.sleep(1)
         return browser.page_source.encode('utf-8')
 
     def mobile_request(self, request, spider):
         browser = spider.browserMobile
         browser.get(request.url)
-        # browser.maximize_window()
-        # time.sleep(2)
-        # browser.refresh()
-        # browser.maximize_window()
-        time.sleep(3)
-
-        # poll_frequency：检测的间隔步长，默认为0.5s
-        # WebDriverWait(browser, timeout=30, poll_frequency=2).until(page_loaded(request, spider))
+        time.sleep(1)
 
         js = '''
             console.info('===== start mobile js =====')
@@ -177,7 +167,6 @@ class DownloaderMiddleware:
             scrollToBottom()
             """
         browser.execute_script(js)
-        time.sleep(3)
 
         js = '''
             var langBtn = document.getElementsByClassName("_1UZPkA")
@@ -188,8 +177,7 @@ class DownloaderMiddleware:
         wait = WebDriverWait(browser, 30, 0.5)
         wait.until(EC.presence_of_element_located((By.CLASS_NAME, "product-carousel__item")), message=request.url+',mobile time out')
 
-        time.sleep(5)
-
+        time.sleep(1)
         return browser.page_source.encode('utf-8')
 
     def process_response(self, request, response, spider):
