@@ -1,11 +1,12 @@
 import json
 import time
 
+import pymysql
 import scrapy
-from lxml import etree
 from selenium import webdriver
 from myscrapy.myitems.shopInfoItem import shopInfoItem
 from myscrapy.myitems.shopProductItem import shopProductItem
+from myscrapy.settings import DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_DATABASE, DB_CHARSET
 
 
 class MysSpider(scrapy.Spider):
@@ -22,18 +23,19 @@ class MysSpider(scrapy.Spider):
         }
     }
 
-    runId = time.strftime("%Y%m%d-%H%M%S", time.localtime())
+    runId = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+    # runId = '20201022_141625'
 
     totalProduct = 1
     totalPage = 1
     currentPage = 1
     lastPageProduct = 1
-    shopUsername = 'jiangcz.my'
+    shopUsername = 'krasivoyee.my'
     basePageUrl = ''
     sort = 1
 
     def __init__(self):
-        self.start_urls.append('https://shopee.com.my/'+self.shopUsername)
+        self.start_urls.append('https://shopee.com.my/' + self.shopUsername)
 
         driverPath = '/Users/mac/www/demo/pys/chromedriver'
 
@@ -58,8 +60,17 @@ class MysSpider(scrapy.Spider):
 
     def parse(self, response):
         print('=== into parse ===')
+        self.outputHtml()
+        exit()
+
         # 商品数量
-        self.totalProduct = int(response.xpath('//*[@id="main"]/div/div[2]/div[2]/div[2]/div/div[1]/div/div[2]/div[1]/div[2]/div[2]/text()').extract_first())
+        self.totalProduct = response.xpath(
+            '//*[@id="main"]/div/div[2]/div[2]/div[2]/div/div[1]/div/div[2]/div[1]/div[2]/div[2]/text()').extract_first()
+
+        if self.totalProduct.find('k') != -1:
+            self.totalProduct = int(float(self.totalProduct.replace('k', ''))*1000)
+        else:
+            self.totalProduct = int(self.totalProduct)
 
         # 计算总页数
         self.totalPage = int(self.totalProduct / 30)
@@ -68,10 +79,12 @@ class MysSpider(scrapy.Spider):
         self.lastPageProduct = self.totalProduct % 30
 
         # 店铺自定义名
-        shopName = response.xpath('//*[@id="main"]/div/div[2]/div[2]/div[2]/div/div[1]/div/div[1]/div[3]/div[1]/div/h1/text()').extract_first()
+        shopName = response.xpath(
+            '//*[@id="main"]/div/div[2]/div[2]/div[2]/div/div[1]/div/div[1]/div[3]/div[1]/div/h1/text()').extract_first()
 
         # 加入时间
-        addTime = response.xpath('//*[@id="main"]/div/div[2]/div[2]/div[2]/div/div[1]/div/div[2]/div[7]/div[2]/div[2]/text()').extract_first()
+        addTime = response.xpath(
+            '//*[@id="main"]/div/div[2]/div[2]/div[2]/div/div[1]/div/div[2]/div[7]/div[2]/div[2]/text()').extract_first()
 
         # url
         rootUrl = self.start_urls[0]
@@ -101,12 +114,13 @@ class MysSpider(scrapy.Spider):
         # 循环产品
         for item in response.xpath('//div[@class="shop-search-result-view__item col-xs-2-4"]/div'):
             url = item.xpath('a/@href').extract_first()
-            yield response.follow(url=url, callback=self.parseDetail, meta={'isMobile': True, 'sort': self.sort, 'p': self.currentPage})
+            yield response.follow(url=url, callback=self.parseDetail,
+                                  meta={'isMobile': True, 'sort': self.sort, 'p': self.currentPage})
             self.sort = self.sort + 1
 
         # 循环页数
         if self.currentPage <= self.totalPage:
-            yield response.follow(url=self.basePageUrl+'?page='+str(self.currentPage), callback=self.parsePage)
+            yield response.follow(url=self.basePageUrl + '?page=' + str(self.currentPage), callback=self.parsePage)
             self.currentPage = self.currentPage + 1
 
     def parseDetail(self, response):
@@ -134,3 +148,79 @@ class MysSpider(scrapy.Spider):
 
         pass
 
+    def closed(self, reason):
+        self.browserPc.quit()
+        self.browserMobile.quit()
+        self.outputHtml()
+
+    def outputHtml(self):
+        conn = pymysql.connect(host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD,
+                               database=DB_DATABASE,
+                               charset=DB_CHARSET)
+        cursor = conn.cursor(pymysql.cursors.DictCursor)
+
+        sql = '''
+        select *, round(ss/tt, 2) avgsold from (
+            select *,
+            (if(LOCATE('k',REPLACE(`sales`,' Sold',''))>0,REPLACE(REPLACE(REPLACE(sales,' Sold',''),'k',''),'.','')*1000,REPLACE(sales,' Sold',''))*1) ss,
+            (IF(LOCATE('months',add_time)>0,REPLACE(add_time,' months','')*30,IF(LOCATE('years',add_time),REPLACE(add_time,' years','')*365,REPLACE(add_time,' days','')))*1) tt
+            from shop_product
+            where run_id = '%s'
+        ) ta
+        order by ss desc, tt;
+        ''' % self.runId
+        cursor.execute(sql)
+        results = cursor.fetchall()
+        bodyHtml = ''
+        for row in results:
+            imgList = eval(row['img_list'])
+            imgHtml = ''
+            if len(imgList) > 0:
+                for img in imgList:
+                    imgHtml = imgHtml + '<img src="%s">' % img
+
+            bodyHtml = bodyHtml + ('''
+<div><div class="title"><a href="%(href)s">%(title)s</a></div><div><span class="tag1">Page: %(page)s</span>
+<span class="tag1">Sort: %(sort)s</span><span class="tag2">Price: %(price)s</span>
+<span class="tag2">Solds: %(solds)s</span>
+<span class="tag2">AddTime: %(add_time)s</span><span class="tag2">AvgSolds: %(avg_solds)s</span></div>
+<div class="cover">
+%(img)s
+</div>
+<div class="desc"><pre>
+%(desc)s
+</pre></div></div><hr>''' % {"href": row['url'],
+                             "title": row['title'],
+                             "page": row['page'],
+                             "sort": row['sort'],
+                             "price": row['discount_price'],
+                             "solds": row['sales'],
+                             "add_time": row['add_time'],
+                             "avg_solds": row['avgsold'],
+                             "img": imgHtml,
+                             "desc": row['desc']
+                             })
+
+        filename = '/Users/mac/www/demo/pys/file/'+self.name+'_'+self.runId+'.html'
+        headHtml = '''<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<script src="http://lib.sinaapp.com/js/jquery/1.7.2/jquery.min.js"></script>
+<style>
+    body{margin: 20px;}
+    .title{margin: 10px;}
+    .tag1{padding: 10px; margin-right: 10px; background-color: green;}
+    .tag2{padding: 10px; margin-right: 10px; background-color: brown;}
+    .cover{margin: 15px;}
+    .desc{margin: 15px;}
+    img{width: 200px;}
+</style>
+</head>
+<body>'''
+        footHtml = '</body></html>'
+        with open(filename, 'w') as file_object:
+            file_object.write(headHtml+bodyHtml+footHtml)
+
+        cursor.close()
+        conn.close()

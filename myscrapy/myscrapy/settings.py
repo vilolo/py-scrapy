@@ -110,3 +110,11 @@ UAPOOL = [
 # CONCURRENT_REQUESTS = 100
 # CONCURRENT_REQUESTS_PER_DOMAIN = 100
 # CONCURRENT_REQUESTS_PER_IP = 100
+
+# conn = pymysql.connect(host='localhost', port=8889, user='root', password='root', database='sspp', charset='utf8mb4')
+DB_HOST = 'localhost'
+DB_PORT = 8889
+DB_USER = 'root'
+DB_PASSWORD = 'root'
+DB_DATABASE = 'sspp'
+DB_CHARSET = 'utf8mb4'

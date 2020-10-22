@@ -3,12 +3,15 @@ import time
 import pymysql
 
 from myscrapy.myitems.shopInfoItem import shopInfoItem
+from myscrapy.settings import DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_DATABASE, DB_CHARSET
 
 
 class Pipeline:
     def __init__(self):
-        self.conn = pymysql.connect(host='localhost', port=8889, user='root', password='root', database='sspp',
-                                    charset='utf8mb4')
+        self.conn = pymysql.connect(host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD,
+                                    database=DB_DATABASE,
+                                    charset=DB_CHARSET)
+
         self.cursor = self.conn.cursor()
         self.curTime = str(int(time.time()))
 
@@ -50,4 +53,3 @@ class Pipeline:
                 print(e.args[0], e.args[1])
 
         return item
-
