@@ -30,7 +30,7 @@ class MysSpider(scrapy.Spider):
     totalPage = 1
     currentPage = 1
     lastPageProduct = 1
-    shopUsername = 'krasivoyee.my'
+    shopUsername = 'yuandada.my'
     basePageUrl = ''
     sort = 1
 
@@ -60,8 +60,6 @@ class MysSpider(scrapy.Spider):
 
     def parse(self, response):
         print('=== into parse ===')
-        self.outputHtml()
-        exit()
 
         # 商品数量
         self.totalProduct = response.xpath(
@@ -145,8 +143,6 @@ class MysSpider(scrapy.Spider):
         item['remark'] = ''
         item['created_at'] = str(int(time.time()))
         yield item
-
-        pass
 
     def closed(self, reason):
         self.browserPc.quit()

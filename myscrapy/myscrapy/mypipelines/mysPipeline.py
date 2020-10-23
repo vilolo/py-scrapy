@@ -52,4 +52,4 @@ class Pipeline:
                 print('======== pymysql.Error =========')
                 print(e.args[0], e.args[1])
 
-        return item
+        # return item

@@ -9,6 +9,8 @@
 
 BOT_NAME = 'myscrapy'
 
+LOG_LEVEL = 'INFO'
+
 SPIDER_MODULES = ['myscrapy.spiders']
 NEWSPIDER_MODULE = 'myscrapy.spiders'
 
@@ -98,7 +100,7 @@ COOKIES_ENABLED = False
 # Configure a delay for requests for the same website (default: 0)
 # See https://doc.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 0.2
+DOWNLOAD_DELAY = 0.15
 
 UAPOOL = [
     "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.22 Safari/537.36 SE 2.X MetaSr 1.0",
@@ -107,7 +109,7 @@ UAPOOL = [
 ]
 
 # 多线程
-# CONCURRENT_REQUESTS = 100
+CONCURRENT_REQUESTS = 50
 # CONCURRENT_REQUESTS_PER_DOMAIN = 100
 # CONCURRENT_REQUESTS_PER_IP = 100
 
