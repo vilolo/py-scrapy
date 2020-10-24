@@ -24,10 +24,12 @@ class TaobaoSpider(scrapy.Spider):
         chrome_options.add_experimental_option('mobileEmulation', mobile_emulation)
         self.browser = webdriver.Chrome(chrome_options=chrome_options,
                                         executable_path="D:\\my doc\\py-scrapy\\chromedriver.exe")
+
         super(TaobaoSpider, self).__init__()
 
     def closed(self, reason):
-        self.browser.close()  # 记得关闭
+        self.browser.close()  # 关闭一个页面
+        self.browser.quit()  # 关闭驱动
 
     def parse(self, response):
         # item = Item()
