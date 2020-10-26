@@ -15,9 +15,8 @@ class TwsSpider(scrapy.Spider):
     name = 'tws'
     allowed_domains = ['shopee.tw']
     start_urls = []
-    shopUsername = 'vilolo99'
+    shopUsername = 'pixu2018'
     runId = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-    totalPage = 1
     currentPage = 1
     basePageUrl = ''
     sort = 1
@@ -64,9 +63,6 @@ class TwsSpider(scrapy.Spider):
             '//*[@id="main"]/div/div[2]/div[2]/div[2]/div/div[1]/div/div[2]/div[1]/div[2]/div[2]/text()').extract_first()
 
         total_product = int(total_product.replace(',', ''))
-        self.totalPage = int(total_product / 30)
-        if total_product % 30 > 0:
-            self.totalPage += 1
 
         shop_name = response.xpath(
             '//*[@id="main"]/div/div[2]/div[2]/div[2]/div/div[1]/div/div[1]/div[3]/div[1]/div/h1/text()').extract_first()
@@ -102,7 +98,7 @@ class TwsSpider(scrapy.Spider):
             self.sort = self.sort + 1
 
         # 循环页数
-        if self.currentPage < self.totalPage:
+        if int(response.xpath('//span[@class="shopee-mini-page-controller__current"]/text()').extract_first()) < int(response.xpath('//span[@class="shopee-mini-page-controller__total"]/text()').extract_first()):
             yield response.follow(url=self.basePageUrl + '?page=' + str(self.currentPage), callback=self.parsePage)
             self.currentPage = self.currentPage + 1
 
@@ -143,7 +139,7 @@ class TwsSpider(scrapy.Spider):
         sql = '''
         select *, round(ss/tt, 2) avgsold from (
             select *,
-            (if(LOCATE('萬',REPLACE(`sales`,' 已售出',''))>0,REPLACE(REPLACE(REPLACE(sales,' 已售出',''),'萬',''),'.','')*10000,REPLACE(replace(sales,',',''),' 已售出',''))*1) ss,
+            (if(LOCATE('萬',REPLACE(`sales`,' 已售出',''))>0,REPLACE(REPLACE(sales,' 已售出',''),'萬','')*10000,REPLACE(replace(sales,',',''),' 已售出',''))*1) ss,
             (IF(LOCATE('個月',add_time)>0,REPLACE(add_time,' 個月','')*30,IF(LOCATE('年',add_time),REPLACE(add_time,' 年','')*365,REPLACE(add_time,' 天','')))*1) tt
             from shop_product
             where run_id = '%s'
@@ -182,7 +178,7 @@ class TwsSpider(scrapy.Spider):
                              "desc": row['desc']
                              })
 
-        filename = '/Users/mac/www/demo/pys/file/' + self.name + '_' + self.runId + '.html'
+        filename = '/Users/mac/www/demo/pys/file/' + self.name + '_' + self.shopUsername + '_' + self.runId + '.html'
         headHtml = '''<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>

@@ -27,10 +27,9 @@ class MysSpider(scrapy.Spider):
     # runId = '20201022_141625'
 
     totalProduct = 1
-    totalPage = 1
     currentPage = 1
     lastPageProduct = 1
-    shopUsername = 'yuandada.my'
+    shopUsername = 'womenbaggallery'
     basePageUrl = ''
     sort = 1
 
@@ -69,9 +68,6 @@ class MysSpider(scrapy.Spider):
             self.totalProduct = int(float(self.totalProduct.replace('k', ''))*1000)
         else:
             self.totalProduct = int(self.totalProduct)
-
-        # 计算总页数
-        self.totalPage = int(self.totalProduct / 30)
 
         # 最后一页数量
         self.lastPageProduct = self.totalProduct % 30
@@ -117,7 +113,8 @@ class MysSpider(scrapy.Spider):
             self.sort = self.sort + 1
 
         # 循环页数
-        if self.currentPage <= self.totalPage:
+        if int(response.xpath('//span[@class="shopee-mini-page-controller__current"]/text()').extract_first()) < int(
+                response.xpath('//span[@class="shopee-mini-page-controller__total"]/text()').extract_first()):
             yield response.follow(url=self.basePageUrl + '?page=' + str(self.currentPage), callback=self.parsePage)
             self.currentPage = self.currentPage + 1
 
@@ -158,7 +155,7 @@ class MysSpider(scrapy.Spider):
         sql = '''
         select *, round(ss/tt, 2) avgsold from (
             select *,
-            (if(LOCATE('k',REPLACE(`sales`,' Sold',''))>0,REPLACE(REPLACE(REPLACE(sales,' Sold',''),'k',''),'.','')*1000,REPLACE(sales,' Sold',''))*1) ss,
+            (if(LOCATE('k',REPLACE(`sales`,' Sold',''))>0,REPLACE(REPLACE(sales,' Sold',''),'k','')*1000,REPLACE(sales,' Sold',''))*1) ss,
             (IF(LOCATE('months',add_time)>0,REPLACE(add_time,' months','')*30,IF(LOCATE('years',add_time),REPLACE(add_time,' years','')*365,REPLACE(add_time,' days','')))*1) tt
             from shop_product
             where run_id = '%s'
@@ -197,7 +194,7 @@ class MysSpider(scrapy.Spider):
                              "desc": row['desc']
                              })
 
-        filename = '/Users/mac/www/demo/pys/file/'+self.name+'_'+self.runId+'.html'
+        filename = '/Users/mac/www/demo/pys/file/'+self.name+'_'+self.shopUsername+'_'+self.runId+'.html'
         headHtml = '''<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>

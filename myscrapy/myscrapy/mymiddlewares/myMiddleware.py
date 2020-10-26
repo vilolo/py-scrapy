@@ -62,7 +62,7 @@ class DownloaderMiddleware:
         # time.sleep(2)
         # browser.refresh()
         # browser.maximize_window()
-        time.sleep(3)
+        time.sleep(1)
 
         js = '''
             console.info('===== start PC js =====')
@@ -115,7 +115,7 @@ class DownloaderMiddleware:
                 (By.CSS_SELECTOR, ".shopee-search-item-result__items>div:nth-child(50)>div>a")),
                 message=request.url+',PC time out')
 
-        time.sleep(2)
+        time.sleep(1)
 
         # 截屏
         # driver.get_screenshot_as_file("C:\\Users\\Administrator\\Desktop\\test.png")
@@ -129,7 +129,7 @@ class DownloaderMiddleware:
         # time.sleep(2)
         # browser.refresh()
         # browser.maximize_window()
-        time.sleep(3)
+        time.sleep(1)
 
         # poll_frequency：检测的间隔步长，默认为0.5s
         # WebDriverWait(browser, timeout=30, poll_frequency=2).until(page_loaded(request, spider))
@@ -177,7 +177,7 @@ class DownloaderMiddleware:
             scrollToBottom()
             """
         browser.execute_script(js)
-        time.sleep(3)
+        time.sleep(1)
 
         js = '''
             var langBtn = document.getElementsByClassName("_1UZPkA")
@@ -188,7 +188,7 @@ class DownloaderMiddleware:
         wait = WebDriverWait(browser, 30, 0.5)
         wait.until(EC.presence_of_element_located((By.CLASS_NAME, "product-carousel__item")), message=request.url+',mobile time out')
 
-        time.sleep(5)
+        time.sleep(1)
 
         return browser.page_source.encode('utf-8')
 

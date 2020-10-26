@@ -1,10 +1,13 @@
 import json
 import time
 
+import pymysql
 import scrapy
 from scrapy.http import HtmlResponse
 from selenium import webdriver
 from myscrapy.myitems.myItem import Item
+
+from myscrapy.settings import DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_DATABASE, DB_CHARSET
 
 
 class MySpider(scrapy.Spider):
@@ -27,7 +30,7 @@ class MySpider(scrapy.Spider):
     platform = 'my'
     # stationery
     # Accessories Storage
-    keyword = 'Storage'
+    keyword = 'School Supplies'
     runId = time.strftime("%Y%m%d-%H%M%S", time.localtime())
 
     def __init__(self):
@@ -129,51 +132,87 @@ class MySpider(scrapy.Spider):
         item['keyword'] = self.keyword
         yield item
 
-        self.html = self.html + """
-        <div>
-        <div class="title"><a href="xxx">%(title)s</a></div>
-        <div>
-            <span class="tip-red">aa: bb</span>
-            <span class="tip-red">aa: bb</span>
-        </div>
-        <div class="cover">
-            <img src="xxx" width="100" height="100">
-            <img src="xxx" width="100" height="100">
-        </div>
-        <div class="desc">
-        <pre>%(desc)s</pre>
-        </div>
-        </div><hr>
-        """ % dict(title=item['title'], desc=item['desc'])
-
     def closed(self, reason):
         self.browserPc.quit()
         self.browserMobile.quit()
+        self.outputHtml()
 
-        # 输出html
-        # coding=UTF-8
-        filename = '/Users/mac/www/demo/pys/file/test.html'
-        headHtml = '''
-        <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-        <html xmlns="http://www.w3.org/1999/xhtml">
-        <head>
-        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-        <script src="http://lib.sinaapp.com/js/jquery/1.7.2/jquery.min.js"></script>
-        <style>
-            body{margin: 20px;}
-            .title{margin: 10px;}
-            .tip-red{padding: 10px; margin-right: 10px; background-color: brown;}
-            .cover{margin: 10px;}
-            .desc{margin: 10px;}
-        </style>
-        </head>
-        <body>
-        '''
-        footHtml = '''
-        </body>
-        </html>
-        '''
-        # with open(filename, 'w') as file_object:
-        #     file_object.write(headHtml+self.html+footHtml)
+    def outputHtml(self):
+        conn = pymysql.connect(host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD,
+                               database=DB_DATABASE,
+                               charset=DB_CHARSET)
+        cursor = conn.cursor(pymysql.cursors.DictCursor)
 
-        pass
+        sql = '''
+        select *, round(ss/tt, 2) avgsold from (
+            select *,
+            (if(LOCATE('k',REPLACE(`sales`,' Sold',''))>0,REPLACE(REPLACE(sales,' Sold',''),'k','')*1000,REPLACE(sales,' Sold',''))*1) ss,
+            (IF(LOCATE('months',add_time)>0,REPLACE(add_time,' months','')*30,IF(LOCATE('years',add_time),REPLACE(add_time,' years','')*365,REPLACE(add_time,' days','')))*1) tt
+            from sp_show
+            where run_id = '%s'
+        ) ta
+        order by tt, ss desc;
+        ''' % self.runId
+        cursor.execute(sql)
+        results = cursor.fetchall()
+        bodyHtml = ''
+        for row in results:
+            imgList = eval(row['img_list'])
+            imgHtml = ''
+            if len(imgList) > 0:
+                for img in imgList:
+                    imgHtml = imgHtml + '<img src="%s">' % img
+
+            bodyHtml = bodyHtml + ('''
+<div><div class="title"><a href="%(href)s">%(title)s</a></div><div>
+    <span class="tag1">Page: %(page)s</span>
+    <span class="tag1">keyword: %(keyword)s</span>
+    <span class="tag1">location: %(location)s</span>
+    <span class="tag1">Sort: %(sort)s</span>
+    <span class="tag2">Price: %(price)s</span>
+    <span class="tag2">Solds: %(solds)s</span>
+    <span class="tag2">AddTime: %(add_time)s</span>
+    <span class="tag2">AvgSolds: %(avg_solds)s</span>
+</div>
+<div class="cover">
+%(img)s
+</div>
+<div class="desc"><pre>
+%(desc)s
+</pre></div></div><hr>''' % {"href": row['url'],
+                             "title": row['title'],
+                             "page": row['page'],
+                             "sort": row['sort'],
+                             "price": row['discount_price'],
+                             "solds": row['sales'],
+                             "add_time": row['add_time'],
+                             "avg_solds": row['avgsold'],
+                             "img": imgHtml,
+                             "desc": row['desc'],
+                             'keyword': row['keyword'],
+                             'location': row['location']
+                             })
+
+        filename = '/Users/mac/www/demo/pys/file/' + self.name + '_' + self.keyword + '_' + self.runId + '.html'
+        headHtml = '''<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<script src="http://lib.sinaapp.com/js/jquery/1.7.2/jquery.min.js"></script>
+<style>
+    body{margin: 20px;}
+    .title{margin: 10px;}
+    .tag1{padding: 10px; margin-right: 10px; background-color: green;}
+    .tag2{padding: 10px; margin-right: 10px; background-color: brown;}
+    .cover{margin: 15px;}
+    .desc{margin: 15px;}
+    img{width: 200px;}
+</style>
+</head>
+<body>'''
+        footHtml = '</body></html>'
+        with open(filename, 'w') as file_object:
+            file_object.write(headHtml + bodyHtml + footHtml)
+
+        cursor.close()
+        conn.close()
