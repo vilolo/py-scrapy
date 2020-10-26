@@ -1,3 +1,4 @@
 .idea
+/myscrapy/.idea
 /myscrapy/__pycache__/
 /myscrapy/spiders/__pycache__/
