@@ -15,7 +15,7 @@ class TwsSpider(scrapy.Spider):
     name = 'tws'
     allowed_domains = ['shopee.tw']
     start_urls = []
-    shopUsername = 'pixu2018'
+    shopUsername = 'sunflower66888'
     runId = time.strftime("%Y%m%d_%H%M%S", time.localtime())
     currentPage = 1
     basePageUrl = ''
