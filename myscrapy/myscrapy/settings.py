@@ -95,7 +95,7 @@ ROBOTSTXT_OBEY = True
 # RETRY_HTTP_CODES = [500, 502, 503, 504, 522, 524, 408, 429, 520]
 
 # Disable cookies (enabled by default)
-COOKIES_ENABLED = False
+# COOKIES_ENABLED = False
 
 # Configure a delay for requests for the same website (default: 0)
 # See https://doc.scrapy.org/en/latest/topics/settings.html#download-delay
