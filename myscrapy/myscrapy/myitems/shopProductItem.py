@@ -16,3 +16,7 @@ class shopProductItem(scrapy.Item):
     remark = scrapy.Field()
     created_at = scrapy.Field()
     liked_count = scrapy.Field()
+    shop_username = scrapy.Field()
+    shop_add_time = scrapy.Field()
+    query_type = scrapy.Field()
+    query_name = scrapy.Field()

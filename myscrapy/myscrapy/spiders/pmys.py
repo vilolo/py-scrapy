@@ -75,7 +75,10 @@ class MysSpider(scrapy.Spider):
             strlist = url.split('.')
             shopid = strlist[-2]
             itemid = strlist[-1]
-            jsonRes = requests.get('https://shopee.com.my/api/v2/item/get?itemid=%s&shopid=%s' % (itemid, shopid), params=json)
+            res = requests.get('https://shopee.com.my/api/v2/item/get?itemid=%s&shopid=%s' % (itemid, shopid), params=json)
+            resJson = json.loads(res.text)
+
+
 
 
         # 循环页数
