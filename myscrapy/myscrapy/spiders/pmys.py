@@ -4,6 +4,7 @@ import sys
 import time
 
 import pymysql
+import requests
 import scrapy
 from selenium import webdriver
 from myscrapy.myitems.shopInfoItem import shopInfoItem
@@ -11,36 +12,25 @@ from myscrapy.myitems.shopProductItem import shopProductItem
 from myscrapy.settings import DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_DATABASE, DB_CHARSET, DRIVER_PATH, \
     FILE_SAVE_PATH
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='gb18030')         #改变标准输出的默认编码
-
 class MysSpider(scrapy.Spider):
-    name = 'mys'
+    name = 'pmys'
     allowed_domains = ['shopee.com.my']
     start_urls = []
 
-    custom_settings = {
-        'ITEM_PIPELINES': {
-            'myscrapy.mypipelines.mysPipeline.Pipeline': 300,
-        },
-        'DOWNLOADER_MIDDLEWARES': {
-            'myscrapy.mymiddlewares.mysMiddleware.DownloaderMiddleware': 300
-        }
-    }
+    # custom_settings = {
+    #     'DOWNLOADER_MIDDLEWARES': {
+    #         'myscrapy.mymiddlewares.pmysMiddleware.DownloaderMiddleware': 300
+    #     }
+    # }
 
     runId = time.strftime("%Y%m%d_%H%M%S", time.localtime())
-    # runId = '20201022_141625'
 
-    totalProduct = 1
-    currentPage = 1
-    lastPageProduct = 1
-    shopUsername = 'jiangcz.my'
+    shopUsername = 'womenbaggallery'
     basePageUrl = ''
-    sort = 1
 
     def __init__(self):
         self.start_urls.append('https://shopee.com.my/' + self.shopUsername)
 
-        # driverPath = '/Users/mac/www/demo/pys/chromedriver'
         driverPath = DRIVER_PATH
 
         chrome_options = webdriver.ChromeOptions()
@@ -55,51 +45,20 @@ class MysSpider(scrapy.Spider):
         self.browserPc = webdriver.Chrome(chrome_options=chrome_options,
                                           executable_path=driverPath)
 
-        mobile_emulation = {'deviceName': 'iPhone 6/7/8'}
-        chrome_options.add_experimental_option('mobileEmulation', mobile_emulation)
-        self.browserMobile = webdriver.Chrome(chrome_options=chrome_options,
-                                              executable_path=driverPath)
-
         super(MysSpider, self).__init__()
 
     def parse(self, response):
         print('=== into parse ===')
 
-        # 商品数量
-        self.totalProduct = response.xpath(
-            '//*[@id="main"]/div/div[2]/div[2]/div[2]/div/div[1]/div/div[2]/div[1]/div[2]/div[2]/text()').extract_first()
+        # 店鋪信息
+        # https://shopee.com.my/api/v2/shop/get?is_brief=0&shopid=32563007
 
-        if self.totalProduct.find('k') != -1:
-            self.totalProduct = int(float(self.totalProduct.replace('k', ''))*1000)
-        else:
-            self.totalProduct = int(self.totalProduct)
-
-        # 最后一页数量
-        self.lastPageProduct = self.totalProduct % 30
-
-        # 店铺自定义名
-        shopName = response.xpath(
-            '//*[@id="main"]/div/div[2]/div[2]/div[2]/div/div[1]/div/div[1]/div[3]/div[1]/div/h1/text()').extract_first()
-
-        # 加入时间
-        addTime = response.xpath(
-            '//*[@id="main"]/div/div[2]/div[2]/div[2]/div/div[1]/div/div[2]/div[7]/div[2]/div[2]/text()').extract_first()
-
-        # url
-        rootUrl = self.start_urls[0]
-
-        # 保存入库
-        shopItem = shopInfoItem()
-        shopItem['run_id'] = self.runId
-        shopItem['shop_username'] = self.shopUsername
-        shopItem['shop_name'] = shopName
-        shopItem['total_products'] = self.totalProduct
-        shopItem['add_time'] = addTime
-        shopItem['url'] = rootUrl
-        shopItem['remark'] = ''
-        shopItem['created_at'] = str(int(time.time()))
-
-        yield shopItem
+        # response = requests.get('https://shopee.com.my/api/v2/item/get?itemid=4854960706&shopid=118059163', params=json)
+        # print(response.url)
+        # print(type(response.text))
+        # obj = json.loads(response.text)
+        # print(obj['item']['itemid'])
+        # return
 
         # 所有产品链接
         # https://shopee.com.my/shop/118059163/search
@@ -113,43 +72,21 @@ class MysSpider(scrapy.Spider):
         # 循环产品
         for item in response.xpath('//div[@class="shop-search-result-view__item col-xs-2-4"]/div'):
             url = item.xpath('a/@href').extract_first()
-            yield response.follow(url=url, callback=self.parseDetail,
-                                  meta={'isMobile': True, 'sort': self.sort, 'p': self.currentPage})
-            self.sort = self.sort + 1
+            strlist = url.split('.')
+            shopid = strlist[-2]
+            itemid = strlist[-1]
+            jsonRes = requests.get('https://shopee.com.my/api/v2/item/get?itemid=%s&shopid=%s' % (itemid, shopid), params=json)
+
 
         # 循环页数
-        if int(response.xpath('//span[@class="shopee-mini-page-controller__current"]/text()').extract_first()) < int(
-                response.xpath('//span[@class="shopee-mini-page-controller__total"]/text()').extract_first()):
-            yield response.follow(url=self.basePageUrl + '?page=' + str(self.currentPage), callback=self.parsePage)
-            self.currentPage = self.currentPage + 1
-
-    def parseDetail(self, response):
-        # print('@@@'+str(response.meta.get('sort'))+'@@@')
-        item = shopProductItem()
-        item['url'] = response.request.url
-
-        strlist = item['url'].split('.')
-        item['goods_id'] = strlist[-1]
-
-        item['title'] = response.xpath('//div[@class="KhR5aV typo-r16 two-line-text"]/text()').extract_first()
-        item['sales'] = response.xpath('//div[@class="product-review__sold-count"]/text()').extract_first()
-        item['price'] = response.xpath('//div[@class="_202EOj"]/text()').extract_first()
-        item['discount_price'] = response.xpath('//div[@class="BazWcl typo-m18"]/text()').extract_first()
-        item['desc'] = response.xpath('//p[@class="XS3hLg"]/text()').extract_first()
-        item['add_time'] = response.xpath('//span[@class="_2L7iw7"]/text()').extract_first()
-        item['img_list'] = json.dumps(response.xpath('//div[@class="_39-Tsj _24d4bo"]/img/@src').getall())
-        # item['img_list'] = json.dumps(response.xpath('//div[@class="_2JMB9h V1Fpl5"]/@style').getall())
-        item['sort'] = response.meta.get('sort')
-        item['page'] = response.request.meta.get('p')
-        item['run_id'] = self.runId
-        item['remark'] = ''
-        item['created_at'] = str(int(time.time()))
-        yield item
+        # if int(response.xpath('//span[@class="shopee-mini-page-controller__current"]/text()').extract_first()) < int(
+        #         response.xpath('//span[@class="shopee-mini-page-controller__total"]/text()').extract_first()):
+        #     yield response.follow(url=self.basePageUrl + '?page=' + str(self.currentPage), callback=self.parsePage)
+        #     self.currentPage = self.currentPage + 1
 
     def closed(self, reason):
         self.browserPc.quit()
-        self.browserMobile.quit()
-        self.outputHtml()
+        # self.outputHtml()
 
     def outputHtml(self):
         conn = pymysql.connect(host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD,

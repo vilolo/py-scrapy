@@ -15,3 +15,4 @@ class shopProductItem(scrapy.Item):
     page = scrapy.Field()
     remark = scrapy.Field()
     created_at = scrapy.Field()
+    liked_count = scrapy.Field()

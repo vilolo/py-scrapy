@@ -115,8 +115,11 @@ CONCURRENT_REQUESTS = 50
 
 # conn = pymysql.connect(host='localhost', port=8889, user='root', password='root', database='sspp', charset='utf8mb4')
 DB_HOST = 'localhost'
-DB_PORT = 8889
+DB_PORT = 3306
 DB_USER = 'root'
 DB_PASSWORD = 'root'
 DB_DATABASE = 'sspp'
 DB_CHARSET = 'utf8mb4'
+
+DRIVER_PATH = 'F:\www\python\chromedriver\chromedriver.exe'
+FILE_SAVE_PATH = 'F:\www\python\output'
