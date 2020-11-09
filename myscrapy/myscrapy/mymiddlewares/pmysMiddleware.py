@@ -80,8 +80,6 @@ class DownloaderMiddleware:
                         curScrollTop = curScrollTop - delta;
                     }
                     window.scrollTo(0,curScrollTop);
-                    console.info("偏移量:"+delta)
-                    console.info("当前位置:"+curScrollTop)
                 };
                 var timer = setInterval(function () {
                     Height = document.body.clientHeight;
@@ -101,12 +99,12 @@ class DownloaderMiddleware:
 
         if request.url.find('robots') < 0:
             try:
-                wait = WebDriverWait(browser, 30, 0.5)
+                wait = WebDriverWait(browser, 20, 0.5)
                 wait.until(EC.presence_of_element_located(
                     (By.CSS_SELECTOR, ".shop-search-result-view > div > div:nth-child(30)>div>a")),
                     message=request.url + ',PC time out')
             except:
-                wait = WebDriverWait(browser, 30, 0.5)
+                wait = WebDriverWait(browser, 20, 0.5)
                 wait.until(EC.presence_of_element_located(
                     (By.CSS_SELECTOR, ".shop-search-result-view > div > div:nth-child(1)>div>a")),
                     message=request.url + ',PC time out')
@@ -144,8 +142,6 @@ class DownloaderMiddleware:
                         curScrollTop = curScrollTop - delta;
                     }
                     window.scrollTo(0,curScrollTop);
-                    console.info("偏移量:"+delta)
-                    console.info("当前位置:"+curScrollTop)
                 };
                 var timer = setInterval(function () {
                     Height = document.body.clientHeight;

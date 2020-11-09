@@ -1,5 +1,6 @@
 import io
 import json
+import random
 import sys
 import time
 
@@ -16,16 +17,20 @@ class MysSpider(scrapy.Spider):
     name = 'pmys'
     allowed_domains = ['shopee.com.my']
     start_urls = []
+    currentPage = 1
 
-    # custom_settings = {
-    #     'DOWNLOADER_MIDDLEWARES': {
-    #         'myscrapy.mymiddlewares.pmysMiddleware.DownloaderMiddleware': 300
-    #     }
-    # }
+    custom_settings = {
+        'ITEM_PIPELINES': {
+            'myscrapy.mypipelines.pmysPipeline.Pipeline': 300,
+        },
+        'DOWNLOADER_MIDDLEWARES': {
+            'myscrapy.mymiddlewares.pmysMiddleware.DownloaderMiddleware': 300
+        }
+    }
 
     runId = time.strftime("%Y%m%d_%H%M%S", time.localtime())
 
-    shopUsername = 'womenbaggallery'
+    shopUsername = 'jiangcz.my'
     basePageUrl = ''
 
     def __init__(self):
@@ -63,33 +68,90 @@ class MysSpider(scrapy.Spider):
         # 所有产品链接
         # https://shopee.com.my/shop/118059163/search
         self.basePageUrl = response.xpath('//a[@class="navbar-with-more-menu__item"][1]/@href').extract_first()
-        yield response.follow(url=self.basePageUrl, callback=self.parsePage)
+        yield response.follow(url=self.basePageUrl, callback=self.parsePage, meta={'sort': 1, 'p': self.currentPage})
 
         pass
 
     def parsePage(self, response):
         print('=== into parsePage ===')
+        s = response.meta.get('sort')
         # 循环产品
         for item in response.xpath('//div[@class="shop-search-result-view__item col-xs-2-4"]/div'):
             url = item.xpath('a/@href').extract_first()
             strlist = url.split('.')
             shopid = strlist[-2]
             itemid = strlist[-1]
-            res = requests.get('https://shopee.com.my/api/v2/item/get?itemid=%s&shopid=%s' % (itemid, shopid), params=json)
-            resJson = json.loads(res.text)
 
+            try:
+                goodsInfo = requests.get('https://shopee.com.my/api/v2/item/get?itemid=%s&shopid=%s' % (itemid, shopid),
+                                         params=json)
+                goodsInfoJson = json.loads(goodsInfo.text)
+            except:
+                goodsInfo = requests.get('https://shopee.com.my/api/v2/item/get?itemid=%s&shopid=%s' % (itemid, shopid),
+                                         params=json)
+                goodsInfoJson = json.loads(goodsInfo.text)
 
+            time.sleep(random.randint(2, 5) / 10)
 
+            try:
+                shopInfo = requests.get('https://shopee.com.my/api/v2/shop/get?is_brief=0&shopid=%s' % (shopid), params=json)
+                shopInfoJson = json.loads(shopInfo.text)
+            except:
+                shopInfo = requests.get('https://shopee.com.my/api/v2/shop/get?is_brief=0&shopid=%s' % (shopid),
+                                        params=json)
+                shopInfoJson = json.loads(shopInfo.text)
+
+            item = shopProductItem()
+            item['run_id'] = self.runId
+            item['query_name'] = self.shopUsername
+            item['query_type'] = 'shop'
+            item['shop_add_time'] = shopInfoJson['data']['mtime']
+            item['shop_location'] = shopInfoJson['data']['shop_location']
+            item['shop_username'] = shopInfoJson['data']['account']['username']
+            item['goods_id'] = itemid
+            item['title'] = goodsInfoJson['item']['name']
+            item['sales'] = goodsInfoJson['item']['historical_sold']
+            if goodsInfoJson['item']['price_min_before_discount'] == -1:
+                item['price'] = 0
+            else:
+                if goodsInfoJson['item']['price_min_before_discount'] != goodsInfoJson['item']['price_max_before_discount']:
+                    item['price'] = str(int(goodsInfoJson['item']['price_min_before_discount'])/100000)+'-'+str(int(goodsInfoJson['item']['price_max_before_discount'])/100000)
+                else:
+                    item['price'] = str(int(goodsInfoJson['item']['price_min_before_discount']) / 100000)
+
+            if goodsInfoJson['item']['price_min'] != goodsInfoJson['item']['price_max']:
+                item['discount_price'] = str(int(goodsInfoJson['item']['price_min']) / 100000) + '-' + str(
+                    int(goodsInfoJson['item']['price_max']) / 100000)
+            else:
+                item['discount_price'] = str(int(goodsInfoJson['item']['price_min']) / 100000)
+
+            item['desc'] = goodsInfoJson['item']['description']
+            item['add_time'] = goodsInfoJson['item']['ctime']
+            if len(goodsInfoJson['item']['images']) > 1:
+                item['img_list'] = json.dumps(['https://cf.shopee.com.my/file/'+goodsInfoJson['item']['images'][0], 'https://cf.shopee.com.my/file/'+goodsInfoJson['item']['images'][1]])
+            else:
+                item['img_list'] = json.dumps(['https://cf.shopee.com.my/file/' + goodsInfoJson['item']['images'][0]])
+            item['url'] = 'https://shopee.com.my'+url
+            item['sort'] = s
+            item['liked_count'] = goodsInfoJson['item']['liked_count']
+            item['page'] = response.meta.get('p')
+            item['remark'] = ''
+            item['created_at'] = str(int(time.time()))
+
+            s = s + 1
+            yield item
+
+            time.sleep(random.randint(2, 10)/10)
 
         # 循环页数
-        # if int(response.xpath('//span[@class="shopee-mini-page-controller__current"]/text()').extract_first()) < int(
-        #         response.xpath('//span[@class="shopee-mini-page-controller__total"]/text()').extract_first()):
-        #     yield response.follow(url=self.basePageUrl + '?page=' + str(self.currentPage), callback=self.parsePage)
-        #     self.currentPage = self.currentPage + 1
+        if int(response.xpath('//span[@class="shopee-mini-page-controller__current"]/text()').extract_first()) < int(
+                response.xpath('//span[@class="shopee-mini-page-controller__total"]/text()').extract_first()):
+            yield response.follow(url=self.basePageUrl + '?page=' + str(self.currentPage), callback=self.parsePage, meta={'sort': s, 'p':self.currentPage})
+            self.currentPage = self.currentPage + 1
 
     def closed(self, reason):
         self.browserPc.quit()
-        # self.outputHtml()
+        self.outputHtml()
 
     def outputHtml(self):
         conn = pymysql.connect(host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD,
@@ -98,14 +160,10 @@ class MysSpider(scrapy.Spider):
         cursor = conn.cursor(pymysql.cursors.DictCursor)
 
         sql = '''
-        select *, round(ss/tt, 2) avgsold from (
-            select *,
-            (if(LOCATE('k',REPLACE(`sales`,' Sold',''))>0,REPLACE(REPLACE(sales,' Sold',''),'k','')*1000,REPLACE(sales,' Sold',''))*1) ss,
-            (IF(LOCATE('months',add_time)>0,REPLACE(add_time,' months','')*30,IF(LOCATE('years',add_time),REPLACE(add_time,' years','')*365,REPLACE(add_time,' days','')))*1) tt
-            from shop_product
-            where run_id = '%s'
-        ) ta
-        order by ss desc, tt;
+        select url,title,page,sort,discount_price, sales,liked_count,left(from_unixtime(add_time),10) add_time, ROUND((unix_timestamp(now())-add_time)/86400) days, img_list,`desc`, ROUND(sales/ROUND((unix_timestamp(now())-add_time)/86400),2) avgsold
+        from shop_product
+        where run_id = '%s'
+        order by avgsold desc
         ''' % self.runId
         cursor.execute(sql)
         results = cursor.fetchall()
@@ -119,9 +177,12 @@ class MysSpider(scrapy.Spider):
 
             bodyHtml = bodyHtml + ('''
 <div><div class="title"><a href="%(href)s">%(title)s</a></div><div><span class="tag1">Page: %(page)s</span>
-<span class="tag1">Sort: %(sort)s</span><span class="tag2">Price: %(price)s</span>
+<span class="tag1">Sort: %(sort)s</span><span class="tag2">Price: RM %(price)s</span>
 <span class="tag2">Solds: %(solds)s</span>
-<span class="tag2">AddTime: %(add_time)s</span><span class="tag2">AvgSolds: %(avg_solds)s</span></div>
+<span class="tag2">Liked: %(liked)s</span>
+<span class="tag2">AddTime: %(add_time)s</span>
+<span class="tag2">Days: %(days)s</span>
+<span class="tag2">AvgSolds: %(avg_solds)s</span></div>
 <div class="cover">
 %(img)s
 </div>
@@ -133,7 +194,9 @@ class MysSpider(scrapy.Spider):
                              "sort": row['sort'],
                              "price": row['discount_price'],
                              "solds": row['sales'],
+                             "liked": row['liked_count'],
                              "add_time": row['add_time'],
+                             "days": row['days'],
                              "avg_solds": row['avgsold'],
                              "img": imgHtml,
                              "desc": row['desc']
@@ -158,7 +221,7 @@ class MysSpider(scrapy.Spider):
 </head>
 <body>'''
         footHtml = '</body></html>'
-        with open(filename, 'w') as file_object:
+        with open(filename, 'w', encoding='utf-8') as file_object:
             file_object.write(headHtml+bodyHtml+footHtml)
 
         cursor.close()

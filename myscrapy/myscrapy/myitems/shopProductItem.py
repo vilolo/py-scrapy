@@ -20,3 +20,4 @@ class shopProductItem(scrapy.Item):
     shop_add_time = scrapy.Field()
     query_type = scrapy.Field()
     query_name = scrapy.Field()
+    shop_location = scrapy.Field()
