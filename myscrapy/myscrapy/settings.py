@@ -121,5 +121,5 @@ DB_PASSWORD = 'root'
 DB_DATABASE = 'sspp'
 DB_CHARSET = 'utf8mb4'
 
-DRIVER_PATH = 'F:\www\python\chromedriver\chromedriver.exe'
-FILE_SAVE_PATH = 'F:\www\python\output'
+DRIVER_PATH = 'C:\\Users\\Administrator\\Downloads\\chromedriver_win32\\chromedriver.exe'
+FILE_SAVE_PATH = 'E:\www\demo\py-scrapy\output'

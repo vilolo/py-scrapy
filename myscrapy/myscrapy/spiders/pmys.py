@@ -12,8 +12,10 @@ from myscrapy.myitems.shopInfoItem import shopInfoItem
 from myscrapy.myitems.shopProductItem import shopProductItem
 from myscrapy.settings import DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_DATABASE, DB_CHARSET, DRIVER_PATH, \
     FILE_SAVE_PATH
+from myscrapy.settings import UAPOOL
 
 class MysSpider(scrapy.Spider):
+    startTime = int(time.time())
     name = 'pmys'
     allowed_domains = ['shopee.com.my']
     start_urls = []
@@ -30,7 +32,7 @@ class MysSpider(scrapy.Spider):
 
     runId = time.strftime("%Y%m%d_%H%M%S", time.localtime())
 
-    shopUsername = 'jiangcz.my'
+    shopUsername = 'eastpek.my'
     basePageUrl = ''
 
     def __init__(self):
@@ -54,6 +56,7 @@ class MysSpider(scrapy.Spider):
 
     def parse(self, response):
         print('=== into parse ===')
+        print(random.randint(2, 5) / 10)
 
         # 店鋪信息
         # https://shopee.com.my/api/v2/shop/get?is_brief=0&shopid=32563007
@@ -83,23 +86,54 @@ class MysSpider(scrapy.Spider):
             itemid = strlist[-1]
 
             try:
+                thisua = random.choice(UAPOOL)
+                headers = {'content-type': 'application/json',
+                           'User-Agent': thisua}
                 goodsInfo = requests.get('https://shopee.com.my/api/v2/item/get?itemid=%s&shopid=%s' % (itemid, shopid),
-                                         params=json)
-                goodsInfoJson = json.loads(goodsInfo.text)
+                                         headers=headers)
+                goodsInfoJson = goodsInfo.json()
             except:
-                goodsInfo = requests.get('https://shopee.com.my/api/v2/item/get?itemid=%s&shopid=%s' % (itemid, shopid),
-                                         params=json)
-                goodsInfoJson = json.loads(goodsInfo.text)
+                try:
+                    time.sleep(random.randint(2, 5) / 10)
+                    thisua = random.choice(UAPOOL)
+                    headers = {'content-type': 'application/json',
+                               'User-Agent': thisua}
+                    goodsInfo = requests.get(
+                        'https://shopee.com.my/api/v2/item/get?itemid=%s&shopid=%s' % (itemid, shopid),
+                        headers=headers)
+                    goodsInfoJson = goodsInfo.json()
+                except:
+                    time.sleep(random.randint(10, 30) / 10)
+                    thisua = random.choice(UAPOOL)
+                    headers = {'content-type': 'application/json',
+                               'User-Agent': thisua}
+                    goodsInfo = requests.get(
+                        'https://shopee.com.my/api/v2/item/get?itemid=%s&shopid=%s' % (itemid, shopid),
+                        headers=headers)
+                    goodsInfoJson = goodsInfo.json()
 
-            time.sleep(random.randint(2, 5) / 10)
+            time.sleep(random.randint(1, 4) / 10)
 
             try:
-                shopInfo = requests.get('https://shopee.com.my/api/v2/shop/get?is_brief=0&shopid=%s' % (shopid), params=json)
-                shopInfoJson = json.loads(shopInfo.text)
+                headers = {'content-type': 'application/json',
+                           'User-Agent': thisua}
+                shopInfo = requests.get('https://shopee.com.my/api/v2/shop/get?is_brief=0&shopid=%s' % shopid, headers=headers)
+                shopInfoJson = shopInfo.json()
             except:
-                shopInfo = requests.get('https://shopee.com.my/api/v2/shop/get?is_brief=0&shopid=%s' % (shopid),
-                                        params=json)
-                shopInfoJson = json.loads(shopInfo.text)
+                try:
+                    time.sleep(random.randint(2, 5) / 10)
+                    headers = {'content-type': 'application/json',
+                               'User-Agent': thisua}
+                    shopInfo = requests.get('https://shopee.com.my/api/v2/shop/get?is_brief=0&shopid=%s' % shopid,
+                                            headers=headers)
+                    shopInfoJson = shopInfo.json()
+                except:
+                    time.sleep(random.randint(10, 30) / 10)
+                    headers = {'content-type': 'application/json',
+                               'User-Agent': thisua}
+                    shopInfo = requests.get('https://shopee.com.my/api/v2/shop/get?is_brief=0&shopid=%s' % shopid,
+                                            headers=headers)
+                    shopInfoJson = shopInfo.json()
 
             item = shopProductItem()
             item['run_id'] = self.runId
@@ -141,8 +175,6 @@ class MysSpider(scrapy.Spider):
             s = s + 1
             yield item
 
-            time.sleep(random.randint(2, 10)/10)
-
         # 循环页数
         if int(response.xpath('//span[@class="shopee-mini-page-controller__current"]/text()').extract_first()) < int(
                 response.xpath('//span[@class="shopee-mini-page-controller__total"]/text()').extract_first()):
@@ -151,20 +183,45 @@ class MysSpider(scrapy.Spider):
 
     def closed(self, reason):
         self.browserPc.quit()
-        self.outputHtml()
+        self.outputHtml(1)
+        self.outputHtml(2)
+        self.outputHtml(3)
 
-    def outputHtml(self):
+        print('=== take time: ' + str(round((int(time.time()) - self.startTime) / 60, 2)) + ' minutes ===')
+
+    def outputHtml(self, type):
         conn = pymysql.connect(host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD,
                                database=DB_DATABASE,
                                charset=DB_CHARSET)
         cursor = conn.cursor(pymysql.cursors.DictCursor)
 
-        sql = '''
-        select url,title,page,sort,discount_price, sales,liked_count,left(from_unixtime(add_time),10) add_time, ROUND((unix_timestamp(now())-add_time)/86400) days, img_list,`desc`, ROUND(sales/ROUND((unix_timestamp(now())-add_time)/86400),2) avgsold
-        from shop_product
-        where run_id = '%s'
-        order by avgsold desc
-        ''' % self.runId
+        if type == 1:   #avgsold
+            typename = 'avgsold'
+            sql = '''
+            select url,title,page,sort,discount_price, sales,liked_count,left(from_unixtime(add_time),10) add_time, ROUND((unix_timestamp(now())-add_time)/86400) days, img_list,`desc`, ROUND(sales/ROUND((unix_timestamp(now())-add_time)/86400),2) avgsold
+            , ROUND(liked_count/ROUND((unix_timestamp(now())-add_time)/86400),2) avglike
+            from shop_product
+            where run_id = '%s'
+            order by avgsold desc
+            ''' % self.runId
+        elif type == 2: #avglike
+            typename = 'avglike'
+            sql = '''
+            select url,title,page,sort,discount_price, sales,liked_count,left(from_unixtime(add_time),10) add_time, ROUND((unix_timestamp(now())-add_time)/86400) days, img_list,`desc`, ROUND(sales/ROUND((unix_timestamp(now())-add_time)/86400),2) avgsold
+            , ROUND(liked_count/ROUND((unix_timestamp(now())-add_time)/86400),2) avglike
+            from shop_product
+            where run_id = '%s'
+            order by avglike desc
+            ''' % self.runId
+        else:  # days
+            typename = 'days'
+            sql = '''
+            select url,title,page,sort,discount_price, sales,liked_count,left(from_unixtime(add_time),10) add_time, ROUND((unix_timestamp(now())-add_time)/86400) days, img_list,`desc`, ROUND(sales/ROUND((unix_timestamp(now())-add_time)/86400),2) avgsold
+            , ROUND(liked_count/ROUND((unix_timestamp(now())-add_time)/86400),2) avglike
+            from shop_product
+            where run_id = '%s'
+            order by days
+            ''' % self.runId
         cursor.execute(sql)
         results = cursor.fetchall()
         bodyHtml = ''
@@ -182,6 +239,7 @@ class MysSpider(scrapy.Spider):
 <span class="tag2">Liked: %(liked)s</span>
 <span class="tag2">AddTime: %(add_time)s</span>
 <span class="tag2">Days: %(days)s</span>
+<span class="tag2">AvgLike: %(avglike)s</span></div>
 <span class="tag2">AvgSolds: %(avg_solds)s</span></div>
 <div class="cover">
 %(img)s
@@ -197,13 +255,14 @@ class MysSpider(scrapy.Spider):
                              "liked": row['liked_count'],
                              "add_time": row['add_time'],
                              "days": row['days'],
+                             "avglike": row['avglike'],
                              "avg_solds": row['avgsold'],
                              "img": imgHtml,
                              "desc": row['desc']
                              })
 
         # filename = '/Users/mac/www/demo/pys/file/'+self.name+'_'+self.shopUsername+'_'+self.runId+'.html'
-        filename = FILE_SAVE_PATH+'/'+self.name+'_'+self.shopUsername+'_'+self.runId+'.html'
+        filename = FILE_SAVE_PATH+'/'+self.name+'_'+self.shopUsername+'_'+self.runId+'_'+typename+'.html'
         headHtml = '''<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
