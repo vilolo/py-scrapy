@@ -23,10 +23,6 @@ class page_loaded:
         self.request = request
         self.spider = spider
 
-    # def __call__(self, driver):
-    #     img_src = driver.find_element_by_css_selector("img.product-carousel__item").get_attribute("src")
-    #     return len(img_src) == 0
-
 class DownloaderMiddleware:
     # Not all methods need to be defined. If a method is not defined,
     # scrapy acts as if the downloader middleware does not modify the
@@ -95,16 +91,17 @@ class DownloaderMiddleware:
         browser.execute_script(js)
 
         if request.url.find('robots') < 0:
+            # #main > div > div._1Bj1VS > div.container._2_Y1cV > div.jrLh5s > div > div.row.shopee-search-item-result__items > div:nth-child(50)
             try:
                 wait = WebDriverWait(browser, 20, 0.5)
                 wait.until(EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, ".shop-search-result-view > div > div:nth-child(30)>div>a")),
+                    (By.CSS_SELECTOR, ".shopee-search-item-result__items>div:nth-child(50)>div>a")),
                     message=request.url + ',PC time out')
             except:
                 try:
                     wait = WebDriverWait(browser, 20, 0.5)
                     wait.until(EC.presence_of_element_located(
-                        (By.CSS_SELECTOR, ".shop-search-result-view > div > div:nth-child(1)>div>a")),
+                        (By.CSS_SELECTOR, ".shopee-search-item-result__items>div:nth-child(1)>div>a")),
                         message=request.url + ',PC time out')
                 except:
                     browser.refresh()
@@ -112,68 +109,9 @@ class DownloaderMiddleware:
                     browser.execute_script(js)
                     wait = WebDriverWait(browser, 30, 0.5)
                     wait.until(EC.presence_of_element_located(
-                        (By.CSS_SELECTOR, ".shop-search-result-view > div > div:nth-child(1)>div>a")),
+                        (By.CSS_SELECTOR, ".shopee-search-item-result__items>div:nth-child(1)>div>a")),
                         message=request.url + ',PC time out')
 
-        return browser.page_source.encode('utf-8')
-
-    def mobile_request(self, request, spider):
-        browser = spider.browserMobile
-        browser.get(request.url)
-        time.sleep(1)
-
-        js = '''
-            console.info('===== start mobile js =====')
-            var langBtn = document.getElementsByClassName("stardust-button")
-            if(langBtn.length > 0){langBtn[0].click();}
-            '''
-        browser.execute_script(js)
-
-        js = """
-            function scrollToBottom() {
-                var Height = document.body.clientHeight,  //文本高度
-                    screenHeight = window.innerHeight,  //屏幕高度
-                    INTERVAL = 500,  // 滚动动作之间的间隔时间
-                    delta = 100,  //每次滚动距离
-                    curScrollTop = 0;    //当前window.scrollTop 值
-                var down = true;
-                Height = Height > 500 ? Height : 500;
-                console.info(Height)
-                var scroll = function () {
-                    //curScrollTop = document.body.scrollTop;
-                    if (down){
-                        curScrollTop = curScrollTop + delta;
-                    }else{
-                        curScrollTop = curScrollTop - delta;
-                    }
-                    window.scrollTo(0,curScrollTop);
-                };
-                var timer = setInterval(function () {
-                    Height = document.body.clientHeight;
-                    var curHeight = curScrollTop + screenHeight;
-                    if (down && curHeight >= Height){   //滚动到页面底部时，结束滚动
-                        down = false;
-                    }
-                    if (!down && curScrollTop<=0){
-                        down = true;
-                    }
-                    scroll();
-                }, INTERVAL)
-            };
-            scrollToBottom()
-            """
-        browser.execute_script(js)
-
-        js = '''
-            var langBtn = document.getElementsByClassName("_1UZPkA")
-            if(langBtn.length > 0){langBtn[0].click();}
-            '''
-        browser.execute_script(js)
-
-        wait = WebDriverWait(browser, 30, 0.5)
-        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "product-carousel__item")), message=request.url+',mobile time out')
-
-        time.sleep(1)
         return browser.page_source.encode('utf-8')
 
     def process_response(self, request, response, spider):

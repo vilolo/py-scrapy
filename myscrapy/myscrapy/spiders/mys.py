@@ -33,7 +33,7 @@ class MysSpider(scrapy.Spider):
     totalProduct = 1
     currentPage = 1
     lastPageProduct = 1
-    shopUsername = 'jiangcz.my'
+    shopUsername = '3cplaza.my'
     basePageUrl = ''
     sort = 1
 

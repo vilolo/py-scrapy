@@ -16,7 +16,7 @@ from myscrapy.settings import UAPOOL
 
 class MysSpider(scrapy.Spider):
     startTime = int(time.time())
-    name = 'pmys'
+    name = 'pkmy'
     allowed_domains = ['shopee.com.my']
     start_urls = []
     currentPage = 1
@@ -26,17 +26,19 @@ class MysSpider(scrapy.Spider):
             'myscrapy.mypipelines.pmysPipeline.Pipeline': 300,
         },
         'DOWNLOADER_MIDDLEWARES': {
-            'myscrapy.mymiddlewares.pmysMiddleware.DownloaderMiddleware': 300
+            'myscrapy.mymiddlewares.pkmyMiddleware.DownloaderMiddleware': 300
         }
     }
 
     runId = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+    totalPage = 3
 
-    shopUsername = '3cplaza.my'
+    keyword = '3c'
     basePageUrl = ''
+    page = 1
 
     def __init__(self):
-        self.start_urls.append('https://shopee.com.my/' + self.shopUsername)
+        self.start_urls.append('https://shopee.com.my/search?keyword=' + self.keyword)
 
         driverPath = DRIVER_PATH
 
@@ -56,45 +58,44 @@ class MysSpider(scrapy.Spider):
         super(MysSpider, self).__init__()
 
     def parse(self, response):
-        print('=== into parse ===')
-
-        # 店鋪信息
-        # https://shopee.com.my/api/v2/shop/get?is_brief=0&shopid=32563007
-
-        # response = requests.get('https://shopee.com.my/api/v2/item/get?itemid=4854960706&shopid=118059163', params=json)
-        # print(response.url)
-        # print(type(response.text))
-        # obj = json.loads(response.text)
-        # print(obj['item']['itemid'])
-        # return
-
-        # 所有产品链接
-        # https://shopee.com.my/shop/118059163/search
-        self.basePageUrl = response.xpath('//a[@class="navbar-with-more-menu__item"][1]/@href').extract_first()
-        yield response.follow(url=self.basePageUrl, callback=self.parsePage, meta={'sort': 1, 'p': self.currentPage})
-
-        pass
-
-    def parsePage(self, response):
-        print('=== into parsePage ===')
-        s = response.meta.get('sort')
-        # 循环产品
-        for item in response.xpath('//div[@class="shop-search-result-view__item col-xs-2-4"]/div'):
+        print('==========')
+        print(type(response.meta.get('s')))
+        s = response.meta.get('s') if type(response.meta.get('s')) is None else 1
+        print(s)
+        for item in response.xpath('//div[@class="col-xs-2-4 shopee-search-item-result__item"]/div'):
             url = item.xpath('a/@href').extract_first()
-            strlist = url.split('.')
-            shopid = strlist[-2]
-            itemid = strlist[-1]
+            yield self.getItemByUrl(response, url, s)
+            s = s + 1
 
-            thisua = random.choice(UAPOOL)
+        if self.page < self.totalPage:
+            yield response.follow(url='https://shopee.com.my/search?keyword=' + self.keyword + '&page=' + str(self.page),
+                                  callback=self.parse, meta={'p': self.page + 1, 's' : s})
+            self.page = self.page + 1
+
+    def getItemByUrl(self, response, url, s):
+        strlist = url.split('.')
+        shopid = strlist[-2]
+        itemid = strlist[-1]
+
+        thisua = random.choice(UAPOOL)
+        try:
+            headers = {'content-type': 'application/json',
+                       'User-Agent': thisua}
+            goodsInfo = requests.get('https://shopee.com.my/api/v2/item/get?itemid=%s&shopid=%s' % (itemid, shopid),
+                                     headers=headers)
+            goodsInfoJson = goodsInfo.json()
+        except:
             try:
+                time.sleep(random.randint(2, 5) / 10)
                 headers = {'content-type': 'application/json',
                            'User-Agent': thisua}
-                goodsInfo = requests.get('https://shopee.com.my/api/v2/item/get?itemid=%s&shopid=%s' % (itemid, shopid),
-                                         headers=headers)
+                goodsInfo = requests.get(
+                    'https://shopee.com.my/api/v2/item/get?itemid=%s&shopid=%s' % (itemid, shopid),
+                    headers=headers)
                 goodsInfoJson = goodsInfo.json()
             except:
                 try:
-                    time.sleep(random.randint(2, 5) / 10)
+                    time.sleep(random.randint(10, 30) / 10)
                     headers = {'content-type': 'application/json',
                                'User-Agent': thisua}
                     goodsInfo = requests.get(
@@ -102,96 +103,87 @@ class MysSpider(scrapy.Spider):
                         headers=headers)
                     goodsInfoJson = goodsInfo.json()
                 except:
-                    try:
-                        time.sleep(random.randint(10, 30) / 10)
-                        headers = {'content-type': 'application/json',
-                                   'User-Agent': thisua}
-                        goodsInfo = requests.get(
-                            'https://shopee.com.my/api/v2/item/get?itemid=%s&shopid=%s' % (itemid, shopid),
-                            headers=headers)
-                        goodsInfoJson = goodsInfo.json()
-                    except:
-                        goodsInfoJson = None
-                        print('goods info 获取失败，%s' % itemid)
+                    goodsInfoJson = None
+                    print('goods info 获取失败，%s' % itemid)
 
-            time.sleep(random.randint(1, 4) / 10)
+        time.sleep(random.randint(1, 4) / 10)
 
+        try:
+            headers = {'content-type': 'application/json',
+                       'User-Agent': thisua}
+            shopInfo = requests.get('https://shopee.com.my/api/v2/shop/get?is_brief=0&shopid=%s' % shopid,
+                                    headers=headers)
+            shopInfoJson = shopInfo.json()
+        except:
             try:
+                time.sleep(random.randint(2, 5) / 10)
                 headers = {'content-type': 'application/json',
                            'User-Agent': thisua}
-                shopInfo = requests.get('https://shopee.com.my/api/v2/shop/get?is_brief=0&shopid=%s' % shopid, headers=headers)
+                shopInfo = requests.get('https://shopee.com.my/api/v2/shop/get?is_brief=0&shopid=%s' % shopid,
+                                        headers=headers)
                 shopInfoJson = shopInfo.json()
             except:
                 try:
-                    time.sleep(random.randint(2, 5) / 10)
+                    time.sleep(random.randint(10, 30) / 10)
                     headers = {'content-type': 'application/json',
                                'User-Agent': thisua}
                     shopInfo = requests.get('https://shopee.com.my/api/v2/shop/get?is_brief=0&shopid=%s' % shopid,
                                             headers=headers)
                     shopInfoJson = shopInfo.json()
                 except:
-                    try:
-                        time.sleep(random.randint(10, 30) / 10)
-                        headers = {'content-type': 'application/json',
-                                   'User-Agent': thisua}
-                        shopInfo = requests.get('https://shopee.com.my/api/v2/shop/get?is_brief=0&shopid=%s' % shopid,
-                                                headers=headers)
-                        shopInfoJson = shopInfo.json()
-                    except:
-                        shopInfoJson = None
-                        print('shop info 获取失败，%s' % itemid)
+                    shopInfoJson = None
+                    print('shop info 获取失败，%s' % itemid)
 
-            item = shopProductItem()
-            item['run_id'] = self.runId
-            item['query_name'] = self.shopUsername
-            item['query_type'] = 'shop'
+        item = shopProductItem()
+        item['run_id'] = self.runId
+        item['query_name'] = self.keyword
+        item['query_type'] = 'shop'
 
-            if 'data' in shopInfoJson.keys():
-                item['shop_add_time'] = shopInfoJson['data']['mtime']
-                item['shop_location'] = shopInfoJson['data']['shop_location']
-                item['shop_username'] = shopInfoJson['data']['account']['username']
+        if 'data' in shopInfoJson.keys():
+            item['shop_add_time'] = shopInfoJson['data']['mtime']
+            item['shop_location'] = shopInfoJson['data']['shop_location']
+            item['shop_username'] = shopInfoJson['data']['account']['username']
 
-            item['goods_id'] = itemid
+        item['goods_id'] = itemid
 
-            if 'item' in goodsInfoJson.keys():
-                item['title'] = goodsInfoJson['item']['name']
-                item['sales'] = goodsInfoJson['item']['historical_sold']
-                if goodsInfoJson['item']['price_min_before_discount'] == -1:
-                    item['price'] = 0
+        if 'item' in goodsInfoJson.keys():
+            item['title'] = goodsInfoJson['item']['name']
+            item['sales'] = goodsInfoJson['item']['historical_sold']
+            if goodsInfoJson['item']['price_min_before_discount'] == -1:
+                item['price'] = 0
+            else:
+                if goodsInfoJson['item']['price_min_before_discount'] != goodsInfoJson['item'][
+                    'price_max_before_discount']:
+                    item['price'] = str(
+                        int(goodsInfoJson['item']['price_min_before_discount']) / 100000) + '-' + str(
+                        int(goodsInfoJson['item']['price_max_before_discount']) / 100000)
                 else:
-                    if goodsInfoJson['item']['price_min_before_discount'] != goodsInfoJson['item']['price_max_before_discount']:
-                        item['price'] = str(int(goodsInfoJson['item']['price_min_before_discount'])/100000)+'-'+str(int(goodsInfoJson['item']['price_max_before_discount'])/100000)
-                    else:
-                        item['price'] = str(int(goodsInfoJson['item']['price_min_before_discount']) / 100000)
+                    item['price'] = str(int(goodsInfoJson['item']['price_min_before_discount']) / 100000)
 
-                if goodsInfoJson['item']['price_min'] != goodsInfoJson['item']['price_max']:
-                    item['discount_price'] = str(int(goodsInfoJson['item']['price_min']) / 100000) + '-' + str(
-                        int(goodsInfoJson['item']['price_max']) / 100000)
-                else:
-                    item['discount_price'] = str(int(goodsInfoJson['item']['price_min']) / 100000)
+            if goodsInfoJson['item']['price_min'] != goodsInfoJson['item']['price_max']:
+                item['discount_price'] = str(int(goodsInfoJson['item']['price_min']) / 100000) + '-' + str(
+                    int(goodsInfoJson['item']['price_max']) / 100000)
+            else:
+                item['discount_price'] = str(int(goodsInfoJson['item']['price_min']) / 100000)
 
-                item['desc'] = goodsInfoJson['item']['description']
-                item['add_time'] = goodsInfoJson['item']['ctime']
-                if len(goodsInfoJson['item']['images']) > 1:
-                    item['img_list'] = json.dumps(['https://cf.shopee.com.my/file/'+goodsInfoJson['item']['images'][0], 'https://cf.shopee.com.my/file/'+goodsInfoJson['item']['images'][1]])
-                else:
-                    item['img_list'] = json.dumps(['https://cf.shopee.com.my/file/' + goodsInfoJson['item']['images'][0]])
-                item['liked_count'] = goodsInfoJson['item']['liked_count']
+            item['desc'] = goodsInfoJson['item']['description']
+            item['add_time'] = goodsInfoJson['item']['ctime']
+            if len(goodsInfoJson['item']['images']) > 1:
+                item['img_list'] = json.dumps(
+                    ['https://cf.shopee.com.my/file/' + goodsInfoJson['item']['images'][0],
+                     'https://cf.shopee.com.my/file/' + goodsInfoJson['item']['images'][1]])
+            else:
+                item['img_list'] = json.dumps(
+                    ['https://cf.shopee.com.my/file/' + goodsInfoJson['item']['images'][0]])
+            item['liked_count'] = goodsInfoJson['item']['liked_count']
 
-            item['url'] = 'https://shopee.com.my'+url
-            item['sort'] = s
-            item['page'] = response.meta.get('p')
-            item['remark'] = ''
-            item['created_at'] = str(int(time.time()))
+        item['url'] = 'https://shopee.com.my' + url
+        item['sort'] = s
+        item['page'] = response.meta.get('p')
+        item['remark'] = ''
+        item['created_at'] = str(int(time.time()))
 
-            s = s + 1
-            yield item
-
-        # 循环页数
-        if int(response.xpath('//span[@class="shopee-mini-page-controller__current"]/text()').extract_first()) < int(
-                response.xpath('//span[@class="shopee-mini-page-controller__total"]/text()').extract_first()):
-            yield response.follow(url=self.basePageUrl + '?page=' + str(self.currentPage), callback=self.parsePage, meta={'sort': s, 'p':self.currentPage})
-            self.currentPage = self.currentPage + 1
+        return item
 
     def closed(self, reason):
         self.browserPc.quit()
@@ -274,7 +266,7 @@ class MysSpider(scrapy.Spider):
                              })
 
         # filename = '/Users/mac/www/demo/pys/file/'+self.name+'_'+self.shopUsername+'_'+self.runId+'.html'
-        filename = FILE_SAVE_PATH+'/'+self.name+'_'+self.shopUsername+'_'+self.runId+'_'+typename+'.html'
+        filename = FILE_SAVE_PATH+'/'+self.name+'_'+self.keyword+'_'+self.runId+'_'+typename+'.html'
         headHtml = '''<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
